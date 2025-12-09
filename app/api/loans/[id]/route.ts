@@ -5,12 +5,13 @@ import { getAuthUser } from '@/lib/auth';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authError = requireAuth(request);
     if (authError) return authError;
 
+    const { id } = await params;
     const user = getAuthUser(request);
 
     const result = await pool.query(
@@ -25,7 +26,7 @@ export async function GET(
       JOIN users u ON l.user_id = u.id
       JOIN books b ON l.book_id = b.id
       WHERE l.id = $1`,
-      [params.id]
+      [id]
     );
 
     if (result.rows.length === 0) {

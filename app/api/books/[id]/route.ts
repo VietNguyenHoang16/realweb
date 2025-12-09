@@ -16,10 +16,11 @@ const updateBookSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const result = await pool.query('SELECT * FROM books WHERE id = $1', [params.id]);
+    const { id } = await params;
+    const result = await pool.query('SELECT * FROM books WHERE id = $1', [id]);
 
     if (result.rows.length === 0) {
       return NextResponse.json(
@@ -40,17 +41,18 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authError = requireAuth(request);
     if (authError) return authError;
 
+    const { id } = await params;
     const body = await request.json();
     const validatedData = updateBookSchema.parse(body);
 
     // Lấy thông tin sách hiện tại
-    const currentBook = await pool.query('SELECT * FROM books WHERE id = $1', [params.id]);
+    const currentBook = await pool.query('SELECT * FROM books WHERE id = $1', [id]);
     if (currentBook.rows.length === 0) {
       return NextResponse.json(
         { error: 'Không tìm thấy sách' },
@@ -119,7 +121,7 @@ export async function PUT(
     }
 
     paramCount++;
-    values.push(params.id);
+    values.push(id);
 
     const result = await pool.query(
       `UPDATE books SET ${updateFields.join(', ')} WHERE id = $${paramCount} RETURNING *`,
@@ -148,13 +150,14 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authError = requireAuth(request);
     if (authError) return authError;
 
-    const result = await pool.query('DELETE FROM books WHERE id = $1 RETURNING *', [params.id]);
+    const { id } = await params;
+    const result = await pool.query('DELETE FROM books WHERE id = $1 RETURNING *', [id]);
 
     if (result.rows.length === 0) {
       return NextResponse.json(

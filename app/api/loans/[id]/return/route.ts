@@ -5,12 +5,13 @@ import { getAuthUser } from '@/lib/auth';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authError = requireAuth(request);
     if (authError) return authError;
 
+    const { id } = await params;
     const user = getAuthUser(request);
 
     // Lấy thông tin loan
@@ -18,7 +19,7 @@ export async function POST(
       `SELECT l.*, b.id as book_id FROM loans l
        JOIN books b ON l.book_id = b.id
        WHERE l.id = $1`,
-      [params.id]
+      [id]
     );
 
     if (loanResult.rows.length === 0) {
@@ -53,7 +54,7 @@ export async function POST(
       `UPDATE loans 
        SET return_date = $1, status = $2
        WHERE id = $3`,
-      [returnDate, status, params.id]
+      [returnDate, status, id]
     );
 
     // Cập nhật available_copies
@@ -66,7 +67,7 @@ export async function POST(
     await pool.query(
       `INSERT INTO loan_history (loan_id, user_id, book_id, action)
        VALUES ($1, $2, $3, 'returned')`,
-      [params.id, loan.user_id, loan.book_id]
+      [id, loan.user_id, loan.book_id]
     );
 
     return NextResponse.json({
