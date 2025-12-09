@@ -48,13 +48,13 @@ if (typeof window === 'undefined') {
     }
   });
 
-  pool.on('error', (err) => {
+  pool.on('error', (err: any) => {
     // Chỉ log error, không exit trong build time
     if (process.env.NODE_ENV !== 'production' || process.env.VERCEL_ENV) {
       console.error('❌ Database connection error:', {
-        code: err.code,
+        code: err.code || 'UNKNOWN',
         message: err.message,
-        severity: err.severity,
+        severity: err.severity || 'ERROR',
       });
       
       if (err.code === '28P01') {
