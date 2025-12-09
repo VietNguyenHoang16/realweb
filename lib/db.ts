@@ -12,7 +12,9 @@ if (process.env.DATABASE_URL) {
       : false,
   });
   
-  console.log('Connecting to PostgreSQL using DATABASE_URL');
+  if (process.env.NODE_ENV !== 'production' || process.env.VERCEL_ENV) {
+    console.log('Connecting to PostgreSQL using DATABASE_URL');
+  }
 } else {
   // Development: sử dụng các biến riêng lẻ
   const dbConfig = {
@@ -24,41 +26,46 @@ if (process.env.DATABASE_URL) {
   };
 
   // Log connection info (without password)
-  console.log('Connecting to PostgreSQL:', {
-    host: dbConfig.host,
-    port: dbConfig.port,
-    database: dbConfig.database,
-    user: dbConfig.user,
-    password: dbConfig.password ? '***' : 'not set',
-  });
+  if (process.env.NODE_ENV !== 'production' || process.env.VERCEL_ENV) {
+    console.log('Connecting to PostgreSQL:', {
+      host: dbConfig.host,
+      port: dbConfig.port,
+      database: dbConfig.database,
+      user: dbConfig.user,
+      password: dbConfig.password ? '***' : 'not set',
+    });
+  }
 
   pool = new Pool(dbConfig);
 }
 
-// Test connection
-pool.on('connect', () => {
-  console.log('✅ Connected to PostgreSQL database');
-});
-
-pool.on('error', (err) => {
-  console.error('❌ Database connection error:', {
-    code: err.code,
-    message: err.message,
-    severity: err.severity,
+// Test connection (chỉ log, không throw error trong build time)
+if (typeof window === 'undefined') {
+  // Chỉ chạy trên server side
+  pool.on('connect', () => {
+    if (process.env.NODE_ENV !== 'production' || process.env.VERCEL_ENV) {
+      console.log('✅ Connected to PostgreSQL database');
+    }
   });
-  
-  if (err.code === '28P01') {
-    console.error('⚠️  Authentication failed! Please check:');
-    console.error('   1. DB_USER and DB_PASSWORD in .env.local');
-    console.error('   2. PostgreSQL user exists and password is correct');
-    console.error('   3. Database exists: ' + dbConfig.database);
-  }
-  
-  // Don't exit in development, let the app handle it
-  if (process.env.NODE_ENV === 'production') {
-    process.exit(-1);
-  }
-});
+
+  pool.on('error', (err) => {
+    // Chỉ log error, không exit trong build time
+    if (process.env.NODE_ENV !== 'production' || process.env.VERCEL_ENV) {
+      console.error('❌ Database connection error:', {
+        code: err.code,
+        message: err.message,
+        severity: err.severity,
+      });
+      
+      if (err.code === '28P01') {
+        console.error('⚠️  Authentication failed! Please check:');
+        console.error('   1. DB_USER and DB_PASSWORD in environment variables');
+        console.error('   2. PostgreSQL user exists and password is correct');
+        console.error('   3. Database connection string is correct');
+      }
+    }
+  });
+}
 
 export default pool;
 
